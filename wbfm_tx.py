@@ -7,42 +7,29 @@
 # GNU Radio Python Flow Graph
 # Title: Broadcast FM TX
 # Author: danieltiganas
-# GNU Radio version: 3.10.1.1
-
-from packaging.version import Version as StrictVersion
-
-if __name__ == '__main__':
-    import ctypes
-    import sys
-    if sys.platform.startswith('linux'):
-        try:
-            x11 = ctypes.cdll.LoadLibrary('libX11.so')
-            x11.XInitThreads()
-        except:
-            print("Warning: failed to XInitThreads()")
+# GNU Radio version: 3.10.12.0
 
 from PyQt5 import Qt
 from gnuradio import qtgui
-from gnuradio.filter import firdes
-import sip
+from PyQt5 import QtCore
 from gnuradio import analog
 from gnuradio import audio
 from gnuradio import blocks
 from gnuradio import filter
+from gnuradio.filter import firdes
 from gnuradio import gr
 from gnuradio.fft import window
 import sys
 import signal
+from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio import soapy
-from gnuradio.qtgui import Range, RangeWidget
-from PyQt5 import QtCore
+import sip
+import threading
 
 
-
-from gnuradio import qtgui
 
 class wbfm_tx(gr.top_block, Qt.QWidget):
 
@@ -53,8 +40,8 @@ class wbfm_tx(gr.top_block, Qt.QWidget):
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not set Icon: {str(exc)}", file=sys.stderr)
         self.top_scroll_layout = Qt.QVBoxLayout()
         self.setLayout(self.top_scroll_layout)
         self.top_scroll = Qt.QScrollArea()
@@ -67,15 +54,15 @@ class wbfm_tx(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "wbfm_tx")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "wbfm_tx")
 
         try:
-            if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
-                self.restoreGeometry(self.settings.value("geometry").toByteArray())
-            else:
-                self.restoreGeometry(self.settings.value("geometry"))
-        except:
-            pass
+            geometry = self.settings.value("geometry")
+            if geometry:
+                self.restoreGeometry(geometry)
+        except BaseException as exc:
+            print(f"Qt GUI: Could not restore geometry: {str(exc)}", file=sys.stderr)
+        self.flowgraph_started = threading.Event()
 
         ##################################################
         # Variables
@@ -83,14 +70,15 @@ class wbfm_tx(gr.top_block, Qt.QWidget):
         self.volume = volume = 0.6
         self.samp_rate = samp_rate = 2000000
         self.quadrature = quadrature = 576000
-        self.freq = freq = 90e6
+        self.freq = freq = 97e6
         self.audio_rate = audio_rate = 48000
 
         ##################################################
         # Blocks
         ##################################################
-        self._volume_range = Range(0, 2, 0.1, 0.6, 200)
-        self._volume_win = RangeWidget(self._volume_range, self.set_volume, "Mic Gain", "counter_slider", float, QtCore.Qt.Horizontal)
+
+        self._volume_range = qtgui.Range(0, 2, 0.1, 0.6, 200)
+        self._volume_win = qtgui.RangeWidget(self._volume_range, self.set_volume, "Mic Gain", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._volume_win)
         self.soapy_hackrf_sink_0 = None
         dev = 'driver=hackrf'
@@ -104,10 +92,10 @@ class wbfm_tx(gr.top_block, Qt.QWidget):
         self.soapy_hackrf_sink_0.set_bandwidth(0, 0)
         self.soapy_hackrf_sink_0.set_frequency(0, freq)
         self.soapy_hackrf_sink_0.set_gain(0, 'AMP', True)
-        self.soapy_hackrf_sink_0.set_gain(0, 'VGA', min(max(32, 0.0), 47.0))
+        self.soapy_hackrf_sink_0.set_gain(0, 'VGA', min(max(45, 0.0), 47.0))
         self.rational_resampler_xxx_0 = filter.rational_resampler_ccc(
-                interpolation=int(samp_rate/1000),
-                decimation=int(quadrature/1000),
+                interpolation=(int(samp_rate/1000)),
+                decimation=(int(quadrature/1000)),
                 taps=[],
                 fractional_bw=0)
         self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
@@ -120,7 +108,7 @@ class wbfm_tx(gr.top_block, Qt.QWidget):
             None # parent
         )
         self.qtgui_freq_sink_x_0.set_update_time(0.10)
-        self.qtgui_freq_sink_x_0.set_y_axis(-140, 10)
+        self.qtgui_freq_sink_x_0.set_y_axis((-140), 10)
         self.qtgui_freq_sink_x_0.set_y_label('Relative Gain', 'dB')
         self.qtgui_freq_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, 0.0, 0, "")
         self.qtgui_freq_sink_x_0.enable_autoscale(False)
@@ -175,9 +163,9 @@ class wbfm_tx(gr.top_block, Qt.QWidget):
         self.analog_wfm_tx_0 = analog.wfm_tx(
         	audio_rate=audio_rate,
         	quad_rate=quadrature,
-        	tau=75e-6,
+        	tau=(50e-6),
         	max_dev=75e3,
-        	fh=-1.0,
+        	fh=(-1.0),
         )
 
 
@@ -194,7 +182,7 @@ class wbfm_tx(gr.top_block, Qt.QWidget):
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "wbfm_tx")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "wbfm_tx")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -243,14 +231,12 @@ class wbfm_tx(gr.top_block, Qt.QWidget):
 
 def main(top_block_cls=wbfm_tx, options=None):
 
-    if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
-        style = gr.prefs().get_string('qtgui', 'style', 'raster')
-        Qt.QApplication.setGraphicsSystem(style)
     qapp = Qt.QApplication(sys.argv)
 
     tb = top_block_cls()
 
     tb.start()
+    tb.flowgraph_started.set()
 
     tb.show()
 

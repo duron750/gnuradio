@@ -49,12 +49,12 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: 90e6
+    value: 97e6
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [504, 16.0]
+    coordinate: [520, 16.0]
     rotation: 0
     state: true
 - name: quadrature
@@ -99,7 +99,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [280, 12.0]
+    coordinate: [216, 328.0]
     rotation: 0
     state: true
 - name: analog_wfm_tx_0
@@ -114,7 +114,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
     quad_rate: quadrature
-    tau: 75e-6
+    tau: 50e-6
   states:
     bus_sink: false
     bus_source: false
@@ -320,7 +320,7 @@ blocks:
     dev_args: driver=hackrf
     samp_rate: samp_rate
     type: fc32
-    vga: '32'
+    vga: '45'
   states:
     bus_sink: false
     bus_source: false
@@ -340,3 +340,4 @@ connections:
 
 metadata:
   file_format: 1
+  grc_version: 3.10.12.0

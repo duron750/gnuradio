@@ -6,43 +6,31 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Rds Tx
-# GNU Radio version: 3.10.1.1
-
-from packaging.version import Version as StrictVersion
-
-if __name__ == '__main__':
-    import ctypes
-    import sys
-    if sys.platform.startswith('linux'):
-        try:
-            x11 = ctypes.cdll.LoadLibrary('libX11.so')
-            x11.XInitThreads()
-        except:
-            print("Warning: failed to XInitThreads()")
+# GNU Radio version: 3.10.12.0
 
 from PyQt5 import Qt
 from gnuradio import qtgui
-from gnuradio.filter import firdes
-import sip
 from gnuradio import analog
 from gnuradio import audio
 from gnuradio import blocks
 from gnuradio import digital
 from gnuradio import filter
+from gnuradio.filter import firdes
 from gnuradio import gr
 from gnuradio.fft import window
 import sys
 import signal
+from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio import network
 import math
 import rds
+import sip
+import threading
 
 
-
-from gnuradio import qtgui
 
 class rds_tx(gr.top_block, Qt.QWidget):
 
@@ -53,8 +41,8 @@ class rds_tx(gr.top_block, Qt.QWidget):
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not set Icon: {str(exc)}", file=sys.stderr)
         self.top_scroll_layout = Qt.QVBoxLayout()
         self.setLayout(self.top_scroll_layout)
         self.top_scroll = Qt.QScrollArea()
@@ -67,15 +55,15 @@ class rds_tx(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "rds_tx")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "rds_tx")
 
         try:
-            if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
-                self.restoreGeometry(self.settings.value("geometry").toByteArray())
-            else:
-                self.restoreGeometry(self.settings.value("geometry"))
-        except:
-            pass
+            geometry = self.settings.value("geometry")
+            if geometry:
+                self.restoreGeometry(geometry)
+        except BaseException as exc:
+            print(f"Qt GUI: Could not restore geometry: {str(exc)}", file=sys.stderr)
+        self.flowgraph_started = threading.Event()
 
         ##################################################
         # Variables
@@ -91,6 +79,7 @@ class rds_tx(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
+
         self.root_raised_cosine_filter_0 = filter.interp_fir_filter_fff(
             160,
             firdes.root_raised_cosine(
@@ -98,7 +87,7 @@ class rds_tx(gr.top_block, Qt.QWidget):
                 usrp_rate,
                 2375,
                 1,
-                160*11))
+                (160*11)))
         self.rds_encoder_0 = rds.encoder(0, 14, True, 'WDR 3', 89.8e6,
         			True, False, 13, 3,
         			147, 'GNU Radio <3')
@@ -123,7 +112,7 @@ class rds_tx(gr.top_block, Qt.QWidget):
             None # parent
         )
         self.qtgui_freq_sink_x_0.set_update_time(0.10)
-        self.qtgui_freq_sink_x_0.set_y_axis(-140, 10)
+        self.qtgui_freq_sink_x_0.set_y_axis((-140), 10)
         self.qtgui_freq_sink_x_0.set_y_label('Relative Gain', 'dB')
         self.qtgui_freq_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, 0.0, 0, "")
         self.qtgui_freq_sink_x_0.enable_autoscale(False)
@@ -176,25 +165,25 @@ class rds_tx(gr.top_block, Qt.QWidget):
                 window.WIN_HAMMING,
                 6.76))
         self.gr_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(2)
-        self.gr_unpack_k_bits_bb_0.set_max_output_buffer(100)
+        self.gr_unpack_k_bits_bb_0.set_max_output_buffer(outbuffer)
         self.gr_sub_xx_0 = blocks.sub_ff(1)
         self.gr_sig_source_x_0_1 = analog.sig_source_f(usrp_rate, analog.GR_SIN_WAVE, 19e3, pilot_gain, 0, 0)
         self.gr_sig_source_x_0_0 = analog.sig_source_f(usrp_rate, analog.GR_SIN_WAVE, 57e3, rds_gain, 0, 0)
         self.gr_sig_source_x_0 = analog.sig_source_f(usrp_rate, analog.GR_SIN_WAVE, 38e3, 1, 0, 0)
         self.gr_multiply_xx_1 = blocks.multiply_vff(1)
         self.gr_multiply_xx_0 = blocks.multiply_vff(1)
-        self.gr_multiply_xx_0.set_max_output_buffer(100)
+        self.gr_multiply_xx_0.set_max_output_buffer(outbuffer)
         self.gr_map_bb_1 = digital.map_bb([1,2])
-        self.gr_map_bb_1.set_max_output_buffer(100)
+        self.gr_map_bb_1.set_max_output_buffer(outbuffer)
         self.gr_diff_encoder_bb_0 = digital.diff_encoder_bb(2, digital.DIFF_DIFFERENTIAL)
-        self.gr_diff_encoder_bb_0.set_max_output_buffer(100)
+        self.gr_diff_encoder_bb_0.set_max_output_buffer(outbuffer)
         self.gr_add_xx_1 = blocks.add_vff(1)
-        self.gr_add_xx_1.set_max_output_buffer(100)
+        self.gr_add_xx_1.set_max_output_buffer(outbuffer)
         self.gr_add_xx_0 = blocks.add_vff(1)
         self.digital_chunks_to_symbols_xx_0 = digital.chunks_to_symbols_bf([-1, 1], 1)
         self.audio_source_0 = audio.source(48000, '', False)
-        self.analog_fm_preemph_0_0 = analog.fm_preemph(fs=48e3, tau=50e-6, fh=-1.0)
-        self.analog_fm_preemph_0 = analog.fm_preemph(fs=48e3, tau=50e-6, fh=-1.0)
+        self.analog_fm_preemph_0_0 = analog.fm_preemph(fs=48e3, tau=(50e-6), fh=(-1.0))
+        self.analog_fm_preemph_0 = analog.fm_preemph(fs=48e3, tau=(50e-6), fh=(-1.0))
 
 
         ##################################################
@@ -228,7 +217,7 @@ class rds_tx(gr.top_block, Qt.QWidget):
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "rds_tx")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "rds_tx")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -252,7 +241,7 @@ class rds_tx(gr.top_block, Qt.QWidget):
         self.gr_sig_source_x_0_1.set_sampling_freq(self.usrp_rate)
         self.low_pass_filter_0_0.set_taps(firdes.low_pass(self.input_gain, self.usrp_rate, 15e3, 2e3, window.WIN_HAMMING, 6.76))
         self.low_pass_filter_0_0_0.set_taps(firdes.low_pass(self.input_gain, self.usrp_rate, 15e3, 2e3, window.WIN_HAMMING, 6.76))
-        self.root_raised_cosine_filter_0.set_taps(firdes.root_raised_cosine(111, self.usrp_rate, 2375, 1, 160*11))
+        self.root_raised_cosine_filter_0.set_taps(firdes.root_raised_cosine(111, self.usrp_rate, 2375, 1, (160*11)))
 
     def get_rds_gain(self):
         return self.rds_gain
@@ -293,14 +282,12 @@ class rds_tx(gr.top_block, Qt.QWidget):
 
 def main(top_block_cls=rds_tx, options=None):
 
-    if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
-        style = gr.prefs().get_string('qtgui', 'style', 'raster')
-        Qt.QApplication.setGraphicsSystem(style)
     qapp = Qt.QApplication(sys.argv)
 
     tb = top_block_cls()
 
     tb.start()
+    tb.flowgraph_started.set()
 
     tb.show()
 

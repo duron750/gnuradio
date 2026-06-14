@@ -7,7 +7,7 @@
 # GNU Radio Python Flow Graph
 # Title: FM Radio
 # Author: danieltiganas
-# GNU Radio version: 3.10.9.2
+# GNU Radio version: 3.10.12.0
 
 from PyQt5 import Qt
 from gnuradio import qtgui
@@ -28,6 +28,7 @@ from gnuradio import eng_notation
 import osmosdr
 import time
 import sip
+import threading
 
 
 
@@ -54,7 +55,7 @@ class wbfm_rx_hackrf(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "wbfm_rx_hackrf")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "wbfm_rx_hackrf")
 
         try:
             geometry = self.settings.value("geometry")
@@ -62,6 +63,7 @@ class wbfm_rx_hackrf(gr.top_block, Qt.QWidget):
                 self.restoreGeometry(geometry)
         except BaseException as exc:
             print(f"Qt GUI: Could not restore geometry: {str(exc)}", file=sys.stderr)
+        self.flowgraph_started = threading.Event()
 
         ##################################################
         # Variables
@@ -234,7 +236,7 @@ class wbfm_rx_hackrf(gr.top_block, Qt.QWidget):
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "wbfm_rx_hackrf")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "wbfm_rx_hackrf")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -316,6 +318,7 @@ def main(top_block_cls=wbfm_rx_hackrf, options=None):
     tb = top_block_cls()
 
     tb.start()
+    tb.flowgraph_started.set()
 
     tb.show()
 

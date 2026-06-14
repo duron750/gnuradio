@@ -299,9 +299,9 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
-    device_name: ''
+    device_name: default
     num_inputs: '2'
-    ok_to_block: 'True'
+    ok_to_block: 'False'
     samp_rate: '48000'
   states:
     bus_sink: false
@@ -1015,4 +1015,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.9.2
+  grc_version: 3.10.12.0

@@ -6,7 +6,7 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Stereo FM receiver and RDS Decoder
-# GNU Radio version: 3.10.11.0
+# GNU Radio version: 3.10.12.0
 
 from PyQt5 import Qt
 from gnuradio import qtgui

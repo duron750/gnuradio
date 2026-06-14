@@ -6,7 +6,7 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Stereo FM receiver and RDS Decoder
-# GNU Radio version: 3.10.11.0
+# GNU Radio version: 3.10.12.0
 
 from PyQt5 import Qt
 from gnuradio import qtgui
@@ -26,7 +26,8 @@ from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
-from gnuradio import soapy
+import osmosdr
+import time
 import rds
 import sip
 import threading
@@ -106,24 +107,6 @@ class rds_rx(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self.soapy_custom_source_0 = None
-        dev = 'driver=' + 'sdrplay'
-        stream_args = ''
-        tune_args = ['']
-        settings = ['']
-        self.soapy_custom_source_0 = soapy.source(dev, "fc32",
-                                  1, 'bias-false',
-                                  stream_args, tune_args, settings)
-        self.soapy_custom_source_0.set_sample_rate(0, samp_rate)
-        self.soapy_custom_source_0.set_bandwidth(0, 0)
-        self.soapy_custom_source_0.set_antenna(0, 'RX')
-        self.soapy_custom_source_0.set_frequency(0, freq_tune)
-        self.soapy_custom_source_0.set_frequency_correction(0, 0)
-        self.soapy_custom_source_0.set_gain_mode(0, False)
-        self.soapy_custom_source_0.set_gain(0, rf_gain)
-        self.soapy_custom_source_0.set_dc_offset_mode(0, False)
-        self.soapy_custom_source_0.set_dc_offset(0, 0)
-        self.soapy_custom_source_0.set_iq_balance(0, 0)
         self.rds_parser_0 = rds.parser(False, False, 0)
         self.rds_panel_0 = rds.rdsPanel(freq)
         self._rds_panel_0_win = self.rds_panel_0
@@ -217,6 +200,20 @@ class rds_rx(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
+        self.osmosdr_source_0 = osmosdr.source(
+            args="numchan=" + str(1) + " " + 'hackrf=0'
+        )
+        self.osmosdr_source_0.set_sample_rate(samp_rate)
+        self.osmosdr_source_0.set_center_freq(freq_tune, 0)
+        self.osmosdr_source_0.set_freq_corr(20, 0)
+        self.osmosdr_source_0.set_dc_offset_mode(0, 0)
+        self.osmosdr_source_0.set_iq_balance_mode(2, 0)
+        self.osmosdr_source_0.set_gain_mode(False, 0)
+        self.osmosdr_source_0.set_gain(0, 0)
+        self.osmosdr_source_0.set_if_gain(rf_gain, 0)
+        self.osmosdr_source_0.set_bb_gain(16, 0)
+        self.osmosdr_source_0.set_antenna('', 0)
+        self.osmosdr_source_0.set_bandwidth(0, 0)
         self.freq_xlating_fir_filter_xxx_1_0 = filter.freq_xlating_fir_filter_fcc(10, firdes.low_pass(1.0, samp_rate / decimation, 7.5e3, 5e3), 57e3, (samp_rate / decimation))
         self.freq_xlating_fir_filter_xxx_0 = filter.freq_xlating_fir_filter_ccc(decimation, firdes.low_pass(1, samp_rate, 60000, 1000), freq_offset, samp_rate)
         self.fir_filter_xxx_2 = filter.fir_filter_ccc(1, rrc_taps_manchester)
@@ -249,7 +246,7 @@ class rds_rx(gr.top_block, Qt.QWidget):
         self.blocks_delay_0 = blocks.delay(gr.sizeof_float*1, ((len(pilot_taps) - 1) // 2))
         self.blocks_complex_to_imag_0 = blocks.complex_to_imag(1)
         self.blocks_add_xx_0 = blocks.add_vff(1)
-        self.audio_sink_0 = audio.sink(48000, '', True)
+        self.audio_sink_0 = audio.sink(48000, 'hw:0', True)
         self.analog_quadrature_demod_cf_0 = analog.quadrature_demod_cf(((samp_rate / decimation) / (2*math.pi*freq_deviation)))
         self.analog_pll_refout_cc_0 = analog.pll_refout_cc(0.001, (2 * math.pi * 19020 / 240000), (2 * math.pi * 18980 / 240000))
         self.analog_fm_deemph_0_0_0 = analog.fm_deemph(fs=48000, tau=(freq_deviation/1e9))
@@ -291,10 +288,10 @@ class rds_rx(gr.top_block, Qt.QWidget):
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_quadrature_demod_cf_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.qtgui_freq_sink_x_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_1_0, 0), (self.rational_resampler_xxx_1, 0))
+        self.connect((self.osmosdr_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.rational_resampler_xxx_0, 0), (self.blocks_delay_0, 0))
         self.connect((self.rational_resampler_xxx_0, 0), (self.fir_filter_xxx_0, 0))
         self.connect((self.rational_resampler_xxx_1, 0), (self.fir_filter_xxx_2, 0))
-        self.connect((self.soapy_custom_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
 
 
     def closeEvent(self, event):
@@ -344,6 +341,7 @@ class rds_rx(gr.top_block, Qt.QWidget):
         self.analog_quadrature_demod_cf_0.set_gain(((self.samp_rate / self.decimation) / (2*math.pi*self.freq_deviation)))
         self.freq_xlating_fir_filter_xxx_0.set_taps(firdes.low_pass(1, self.samp_rate, 60000, 1000))
         self.freq_xlating_fir_filter_xxx_1_0.set_taps(firdes.low_pass(1.0, self.samp_rate / self.decimation, 7.5e3, 5e3))
+        self.osmosdr_source_0.set_sample_rate(self.samp_rate)
         self.qtgui_freq_sink_x_0.set_frequency_range(0, (self.samp_rate / self.decimation))
         self.qtgui_waterfall_sink_x_0.set_frequency_range(0, (self.samp_rate / self.decimation))
 
@@ -359,7 +357,7 @@ class rds_rx(gr.top_block, Qt.QWidget):
 
     def set_rf_gain(self, rf_gain):
         self.rf_gain = rf_gain
-        self.soapy_custom_source_0.set_gain(0, self.rf_gain)
+        self.osmosdr_source_0.set_if_gain(self.rf_gain, 0)
 
     def get_pilot_taps(self):
         return self.pilot_taps
@@ -374,7 +372,7 @@ class rds_rx(gr.top_block, Qt.QWidget):
 
     def set_freq_tune(self, freq_tune):
         self.freq_tune = freq_tune
-        self.soapy_custom_source_0.set_frequency(0, self.freq_tune)
+        self.osmosdr_source_0.set_center_freq(self.freq_tune, 0)
 
     def get_freq_deviation(self):
         return self.freq_deviation
